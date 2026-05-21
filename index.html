@@ -307,12 +307,19 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 <div class="overlay" id="ov-sum"></div>
 <div class="sheet" id="sh-sum">
   <div class="handle"></div>
-  <div class="sheet-title">巡店摘要</div>
+  <div class="sheet-title">巡店摘要與匯出</div>
+  <div style="position:absolute;top:18px;right:16px;"><button id="sum-cancel" style="background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;">✕</button></div>
   <div class="sum-txt" id="sum-txt"></div>
   <button class="btn-copy" id="btn-copy">複製全部文字</button>
-  <div class="sheet-foot" style="margin-top:8px;">
-    <button class="btn-cancel" id="sum-cancel">關閉</button>
-    <button class="btn-ok" id="btn-export">匯出 JSON</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px 0;">
+    <button class="btn-ok" id="btn-excel" style="font-size:13px;">📊 匯出 Excel</button>
+    <button class="btn-ok" id="btn-export" style="font-size:13px;background:#555;">💾 備份 JSON</button>
+  </div>
+  <div style="padding:8px 16px 0;">
+    <label style="display:block;width:100%;padding:11px;background:none;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;color:var(--text2);cursor:pointer;text-align:center;">
+      📂 從 JSON 還原資料
+      <input type="file" id="btn-import" accept=".json" style="display:none;">
+    </label>
   </div>
   <button class="btn-clear" id="btn-clear">🗑 清除所有記錄（開始新一輪巡店）</button>
 </div>
@@ -570,7 +577,8 @@ function renderList(cat) {
       +(o.location?'<div class="kv"><span class="kl">陳列位置</span><span class="kv-val">'+esc(o.location)+'</span></div>':'')
       +((o.ourItem||o.status)?'<div class="sep"></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+(o.ourItem?'<span style="font-size:12px;color:var(--text2);">對應：'+esc(o.ourItem)+'</span>':'')+(o.status?'<span style="font-size:12px;padding:2px 8px;border-radius:99px;background:var(--tag);color:var(--text2);">'+esc(o.status)+'</span>':'')+'</div>':'')
       +(o.note?'<div style="font-size:12px;color:var(--text2);font-style:italic;">'+esc(o.note)+'</div>':'')
-      +(o.photos&&o.photos.length?'<div class="thumbs">'+o.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="showLightbox(this.src)">'; }).join('')+'</div>':'')
+      +(o.photos&&o.photos.length?'<div class="thumbs">'+o.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="showLightbox(this.src)">'; }).join('')+'</div>'
+        +'<button onclick="downloadPhotos(\'pos\',\''+cat+'\','+o.id+')" style="font-size:12px;color:var(--text2);background:none;border:1px solid var(--border);border-radius:var(--rs);padding:5px 10px;cursor:pointer;font-family:inherit;">⬇ 下載全部照片（'+o.photos.length+'張）</button>':'')
       +'</div></div>';
   }).join('');
 }
@@ -585,13 +593,42 @@ function renderPromos() {
       +(p.period?'<div class="kv"><span class="kl">活動期間</span><span class="kv-val">'+esc(p.period)+'</span></div>':'')
       +(p.feedback?'<div class="kv"><span class="kl">店家回饋</span><div class="kv-val green-val">'+esc(p.feedback).replace(/\n/g,'<br>')+'</div></div>':'')
       +(p.display?'<div class="kv"><span class="kl">溝通文案與陳列</span><div class="kv-val">'+esc(p.display).replace(/\n/g,'<br>')+'</div></div>':'')
-      +(p.photos&&p.photos.length?'<div class="thumbs">'+p.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="showLightbox(this.src)">'; }).join('')+'</div>':'')
+      +(p.photos&&p.photos.length?'<div class="thumbs">'+p.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="showLightbox(this.src)">'; }).join('')+'</div>'
+        +'<button onclick="downloadPhotos(\'promo\',null,'+p.id+')" style="font-size:12px;color:var(--text2);background:none;border:1px solid var(--border);border-radius:var(--rs);padding:5px 10px;cursor:pointer;font-family:inherit;">⬇ 下載全部照片（'+p.photos.length+'張）</button>':'')
       +'</div></div>';
   }).join('');
 }
 
 function delPos(cat,id){ if(!confirm('確認刪除？'))return; data[cat]=data[cat].filter(function(o){return o.id!==id;}); renderList(cat); save(); }
 function delPromo(id){ if(!confirm('確認刪除？'))return; promos=promos.filter(function(p){return p.id!==id;}); renderPromos(); save(); }
+
+function downloadPhotos(type, cat, id) {
+  var photos = [];
+  var label = '';
+  if (type === 'pos') {
+    var rec = data[cat].find(function(o){ return o.id === id; });
+    if (!rec || !rec.photos.length) return;
+    photos = rec.photos;
+    label = rec.brand + '_' + rec.posType;
+  } else {
+    var rec = promos.find(function(p){ return p.id === id; });
+    if (!rec || !rec.photos.length) return;
+    photos = rec.photos;
+    label = rec.brand + '_' + rec.product;
+  }
+  // Download each photo with a short delay between
+  photos.forEach(function(src, i) {
+    setTimeout(function() {
+      var ext = src.indexOf('image/png') !== -1 ? 'png' : 'jpg';
+      var a = document.createElement('a');
+      a.href = src;
+      a.download = label.replace(/[\/\\:*?"<>|]/g,'_') + '_' + (i+1) + '.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }, i * 300);
+  });
+}
 
 // Summary
 document.getElementById('fab').addEventListener('click', function(){
@@ -636,11 +673,73 @@ document.getElementById('btn-copy').addEventListener('click', function(){
   if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ btn.textContent='✓ 已複製！'; setTimeout(function(){btn.textContent='複製全部文字';},1800); }); }
   else { var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); btn.textContent='✓ 已複製！'; setTimeout(function(){btn.textContent='複製全部文字';},1800); }
 });
+
+// ── 備份 JSON ──────────────────────────────────────────────
 document.getElementById('btn-export').addEventListener('click', function(){
-  var d=JSON.parse(JSON.stringify({date:now.toISOString(),data:data,promos:promos}));
-  // photos kept in export
-  var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='巡店記錄.json'; a.click();
+  var d = JSON.parse(JSON.stringify({date:now.toISOString(),data:data,promos:promos}));
+  var blob = new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = '巡店備份_'+now.toLocaleDateString('zh-TW').replace(/\//g,'-')+'.json'; a.click();
+});
+
+// ── 從 JSON 還原 ───────────────────────────────────────────
+document.getElementById('btn-import').addEventListener('change', function(e){
+  var file = e.target.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var d = JSON.parse(ev.target.result);
+      if (!d.data && !d.promos) { alert('格式不符，請選擇正確的備份檔案'); return; }
+      if (!confirm('還原後會覆蓋目前所有記錄，確定繼續？')) return;
+      CATS.forEach(function(c){ data[c] = []; });
+      promos = [];
+      if (d.data) { CATS.forEach(function(c){ if(d.data[c]) data[c] = d.data[c]; }); }
+      if (d.promos) promos = d.promos;
+      CATS.forEach(function(c){ renderList(c); });
+      renderPromos(); save();
+      closeSheet('ov-sum','sh-sum');
+      setTimeout(function(){ alert('✓ 資料已還原，共 '+(CATS.reduce(function(s,c){return s+data[c].length;},0)+promos.length)+' 筆記錄'); }, 400);
+    } catch(err) { alert('檔案讀取失敗，請確認是正確的備份 JSON'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ── 匯出 Excel ─────────────────────────────────────────────
+document.getElementById('btn-excel').addEventListener('click', function(){
+  // Build CSV content with BOM for Excel Chinese support
+  var rows = [];
+  // Sheet 1: POS materials
+  rows.push(['【輔銷物觀察】']);
+  rows.push(['品類','觀察品牌','輔銷物類型','材質/形式','寬W(cm)','高H(cm)','深D(cm)','溝通重點','陳列位置','對比我方品牌','對應我方品項','差距狀況','備註']);
+  CATS.forEach(function(cat){
+    data[cat].forEach(function(o){
+      var dims = o.dims || '';
+      var w='', h='', d2='';
+      var m = dims.match(/W([\d.]+)/); if(m) w=m[1];
+      m = dims.match(/H([\d.]+)/); if(m) h=m[1];
+      m = dims.match(/D([\d.]+)/); if(m) d2=m[1];
+      rows.push([CAT_LABEL[cat],o.brand,o.posType,o.material,w,h,d2,o.message,o.location,o.ourBrand,o.ourItem,o.status,o.note]);
+    });
+  });
+  rows.push([]);
+  // Sheet 2: Promo
+  rows.push(['【促銷活動觀察】']);
+  rows.push(['品牌','品類','促銷商品','案型','案型補充','活動期間','店家回饋','溝通文案與陳列方式']);
+  promos.forEach(function(p){
+    rows.push([p.brand,p.cat,p.product,p.promoType,p.detail,p.period,p.feedback,p.display]);
+  });
+
+  var csv = '\uFEFF' + rows.map(function(row){
+    return row.map(function(cell){
+      var s = String(cell||'').replace(/"/g,'""');
+      return (s.indexOf(',')!==-1||s.indexOf('\n')!==-1||s.indexOf('"')!==-1) ? '"'+s+'"' : s;
+    }).join(',');
+  }).join('\r\n');
+
+  var blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = '巡店記錄_'+now.toLocaleDateString('zh-TW').replace(/\//g,'-')+'.csv'; a.click();
 });
 function showLightbox(src) {
   document.getElementById('lightbox-img').src = src;
