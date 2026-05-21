@@ -128,6 +128,11 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .btn-copy { width: calc(100% - 32px); margin: 12px 16px 0; padding: 13px; background: var(--accent); border: none; border-radius: var(--r); color: #fff; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
 
 #toast { position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%); background: #1A1916; color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 99px; z-index: 400; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+
+#lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 500; align-items: center; justify-content: center; }
+#lightbox.on { display: flex; }
+#lightbox img { max-width: 96vw; max-height: 88vh; object-fit: contain; border-radius: 6px; }
+#lightbox-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 99px; width: 36px; height: 36px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 </style>
 </head>
 <body>
@@ -315,6 +320,11 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 <button class="fab" id="fab">📋 匯出摘要</button>
 <div id="toast">✓ 已自動儲存</div>
 
+<div id="lightbox">
+  <button id="lightbox-close">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
 <script>
 var CATS = ['dry','can','snack','health','litter','supply','brand'];
 var CAT_LABEL = {dry:'乾主食',can:'罐頭',snack:'零食',health:'保健品',litter:'貓砂',supply:'用品',brand:'品牌飾條'};
@@ -465,7 +475,7 @@ function readFiles(files, arr, thumbId) {
 }
 function renderThumbs(arr, thumbId) {
   document.getElementById(thumbId).innerHTML = arr.map(function(src,i){
-    return '<div class="tw"><img class="thumb" src="'+src+'" onclick="window.open(this.src,\'_blank\')"><button class="tdel" data-arr="'+thumbId+'" data-i="'+i+'">✕</button></div>';
+    return '<div class="tw"><img class="thumb" src="'+src+'" onclick="showLightbox(this.src)"><button class="tdel" data-arr="'+thumbId+'" data-i="'+i+'">✕</button></div>';
   }).join('');
 }
 document.addEventListener('click', function(e) {
@@ -560,7 +570,7 @@ function renderList(cat) {
       +(o.location?'<div class="kv"><span class="kl">陳列位置</span><span class="kv-val">'+esc(o.location)+'</span></div>':'')
       +((o.ourItem||o.status)?'<div class="sep"></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+(o.ourItem?'<span style="font-size:12px;color:var(--text2);">對應：'+esc(o.ourItem)+'</span>':'')+(o.status?'<span style="font-size:12px;padding:2px 8px;border-radius:99px;background:var(--tag);color:var(--text2);">'+esc(o.status)+'</span>':'')+'</div>':'')
       +(o.note?'<div style="font-size:12px;color:var(--text2);font-style:italic;">'+esc(o.note)+'</div>':'')
-      +(o.photos&&o.photos.length?'<div class="thumbs">'+o.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="window.open(this.src,\'_blank\')">'; }).join('')+'</div>':'')
+      +(o.photos&&o.photos.length?'<div class="thumbs">'+o.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="showLightbox(this.src)">'; }).join('')+'</div>':'')
       +'</div></div>';
   }).join('');
 }
@@ -575,7 +585,7 @@ function renderPromos() {
       +(p.period?'<div class="kv"><span class="kl">活動期間</span><span class="kv-val">'+esc(p.period)+'</span></div>':'')
       +(p.feedback?'<div class="kv"><span class="kl">店家回饋</span><div class="kv-val green-val">'+esc(p.feedback).replace(/\n/g,'<br>')+'</div></div>':'')
       +(p.display?'<div class="kv"><span class="kl">溝通文案與陳列</span><div class="kv-val">'+esc(p.display).replace(/\n/g,'<br>')+'</div></div>':'')
-      +(p.photos&&p.photos.length?'<div class="thumbs">'+p.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="window.open(this.src,\'_blank\')">'; }).join('')+'</div>':'')
+      +(p.photos&&p.photos.length?'<div class="thumbs">'+p.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="showLightbox(this.src)">'; }).join('')+'</div>':'')
       +'</div></div>';
   }).join('');
 }
@@ -628,10 +638,23 @@ document.getElementById('btn-copy').addEventListener('click', function(){
 });
 document.getElementById('btn-export').addEventListener('click', function(){
   var d=JSON.parse(JSON.stringify({date:now.toISOString(),data:data,promos:promos}));
-  CATS.forEach(function(c){ d.data[c].forEach(function(o){ o.photoCount=o.photos.length; delete o.photos; }); });
-  d.promos.forEach(function(p){ p.photoCount=p.photos.length; delete p.photos; });
+  // photos kept in export
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='巡店記錄.json'; a.click();
+});
+function showLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('on');
+}
+document.getElementById('lightbox-close').addEventListener('click', function(){
+  document.getElementById('lightbox').classList.remove('on');
+  document.getElementById('lightbox-img').src = '';
+});
+document.getElementById('lightbox').addEventListener('click', function(e){
+  if (e.target === this) {
+    this.classList.remove('on');
+    document.getElementById('lightbox-img').src = '';
+  }
 });
 document.getElementById('btn-clear').addEventListener('click', function(){
   if(!confirm('確定清除所有記錄？\n（建議先複製摘要再清除）')) return;
