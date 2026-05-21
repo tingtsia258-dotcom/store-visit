@@ -252,7 +252,7 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div><div class="lbl">備註</div><textarea id="m-note" placeholder="質感、設計亮點…" style="min-height:48px;"></textarea></div>
     <div>
       <div class="lbl">現場照片</div>
-      <div class="photo-zone"><input type="file" id="m-photos" accept="image/*" multiple capture="environment"><div class="photo-zone-txt"><span>📷</span>點擊拍照 / 選取圖片</div></div>
+      <div class="photo-zone"><input type="file" id="m-photos" accept="image/*" multiple><div class="photo-zone-txt"><span>📷</span>點擊拍照 / 選取圖片</div></div>
       <div class="thumbs" id="m-thumbs"></div>
     </div>
   </div>
@@ -268,7 +268,7 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   <div class="handle"></div>
   <div class="sheet-title">新增促銷活動紀錄</div>
   <div class="sheet-body">
-    <div><div class="lbl">品牌<span class="req">*</span></div><input type="text" id="p-brand" placeholder="品牌名稱"></div>
+    <div><div class="lbl">品牌<span class="req">*</span></div><input type="text" id="pb-brand" placeholder="品牌名稱"></div>
     <div><div class="lbl">品類<span class="req">*</span></div>
       <select id="p-cat"><option value="">請選擇品類</option><option>乾主食</option><option>罐頭</option><option>零食</option><option>保健品</option><option>貓砂</option><option>用品</option><option>全品類</option><option>其他</option></select>
     </div>
@@ -288,7 +288,7 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div><div class="lbl">溝通文案與陳列方式</div><textarea id="p-display" placeholder="端架爆炸牌、堆頭陳列…"></textarea></div>
     <div>
       <div class="lbl">現場照片</div>
-      <div class="photo-zone"><input type="file" id="p-photos" accept="image/*" multiple capture="environment"><div class="photo-zone-txt"><span>📷</span>點擊拍照 / 選取圖片</div></div>
+      <div class="photo-zone"><input type="file" id="p-photos" accept="image/*" multiple><div class="photo-zone-txt"><span>📷</span>點擊拍照 / 選取圖片</div></div>
       <div class="thumbs" id="p-thumbs"></div>
     </div>
   </div>
@@ -333,19 +333,66 @@ var now = new Date();
 document.getElementById('datestr').textContent = now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
 
 // LocalStorage
-var SKEY = 'svd_v2';
-function save() {
-  try { localStorage.setItem(SKEY, JSON.stringify({data:data,promos:promos})); toast(); } catch(e){}
+var SKEY = 'svd_v3';
+var db = null;
+
+// Open IndexedDB
+(function() {
+  try {
+    var req = indexedDB.open('storeVisit', 1);
+    req.onupgradeneeded = function(e) {
+      e.target.result.createObjectStore('kv');
+    };
+    req.onsuccess = function(e) {
+      db = e.target.result;
+      // Load from IndexedDB first
+      try {
+        var tx = db.transaction('kv','readonly');
+        var get = tx.objectStore('kv').get(SKEY);
+        get.onsuccess = function() {
+          if (get.result) applyLoaded(get.result);
+          else loadFromLS(); // fallback to localStorage
+          initRender();
+        };
+        get.onerror = function() { loadFromLS(); initRender(); };
+      } catch(e) { loadFromLS(); initRender(); }
+    };
+    req.onerror = function() { loadFromLS(); initRender(); };
+  } catch(e) { loadFromLS(); initRender(); }
+})();
+
+function applyLoaded(d) {
+  if (d.data) { CATS.forEach(function(c){ if(d.data[c]) d.data[c].forEach(function(x){ data[c].push(x); }); }); }
+  if (d.promos) d.promos.forEach(function(x){ promos.push(x); });
 }
-function load() {
+function loadFromLS() {
   try {
     var r = localStorage.getItem(SKEY);
-    if (!r) return;
-    var d = JSON.parse(r);
-    if (d.data) { CATS.forEach(function(c){ if(d.data[c]) d.data[c].forEach(function(x){ data[c].push(x); }); }); }
-    if (d.promos) d.promos.forEach(function(x){ promos.push(x); });
-  } catch(e){}
+    if (r) applyLoaded(JSON.parse(r));
+  } catch(e) {}
 }
+function initRender() {
+  CATS.forEach(function(c){ renderList(c); });
+  renderPromos();
+}
+
+function save() {
+  var payload = {data:data, promos:promos};
+  // Save to both IndexedDB and localStorage
+  try { localStorage.setItem(SKEY, JSON.stringify(payload)); } catch(e){}
+  try {
+    if (db) {
+      var tx = db.transaction('kv','readwrite');
+      tx.objectStore('kv').put(payload, SKEY);
+    }
+  } catch(e){}
+  toast();
+}
+function clearAll() {
+  try { localStorage.removeItem(SKEY); } catch(e){}
+  try { if(db){ var tx=db.transaction('kv','readwrite'); tx.objectStore('kv').delete(SKEY); } } catch(e){}
+}
+
 var toastT;
 function toast() {
   var el = document.getElementById('toast');
@@ -478,7 +525,7 @@ document.getElementById('pos-save').addEventListener('click', function(){
 // Promo modal
 function openPromo() { resetPromo(); openSheet('ov-promo','sh-promo'); }
 function resetPromo() {
-  ['p-brand','p-product','p-detail','p-period','p-feedback','p-display'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['pb-brand','p-product','p-detail','p-period','p-feedback','p-display'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('p-cat').value='';
   document.querySelectorAll('#promo-chips .chip').forEach(function(c){ c.className='chip'; });
   promoType=''; promoTypeKey=''; promoPhotos=[];
@@ -487,7 +534,7 @@ function resetPromo() {
 }
 document.getElementById('promo-cancel').addEventListener('click', function(){ closeSheet('ov-promo','sh-promo'); });
 document.getElementById('promo-save').addEventListener('click', function(){
-  var brand=document.getElementById('p-brand').value.trim();
+  var brand=document.getElementById('pb-brand').value.trim();
   var cat=document.getElementById('p-cat').value;
   var product=document.getElementById('p-product').value.trim();
   if (!brand){alert('請填寫品牌名稱');return;}
@@ -590,14 +637,9 @@ document.getElementById('btn-clear').addEventListener('click', function(){
   if(!confirm('確定清除所有記錄？\n（建議先複製摘要再清除）')) return;
   CATS.forEach(function(c){ data[c]=[]; renderList(c); });
   promos=[]; renderPromos();
-  localStorage.removeItem(SKEY);
+  clearAll();
   closeSheet('ov-sum','sh-sum');
 });
-
-// Init
-load();
-CATS.forEach(function(c){ renderList(c); });
-renderPromos();
 </script>
 </body>
 </html>
