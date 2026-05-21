@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>輔銷物巡店記錄</title>
+<style>
+:root {
+  --bg: #F7F6F3; --surface: #fff; --border: #E5E3DC;
+  --border2: #C8C5BB; --text: #1A1916; --text2: #6B6860;
+  --text3: #A8A59E; --accent: #2D4A3E; --accentl: #EAF0EC;
+  --tag: #EDECEA; --red: #C0392B; --r: 10px; --rs: 6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; padding-bottom: 90px; }
+
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px 10px; }
+.topbar h1 { font-size: 17px; font-weight: 600; }
+.topbar p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+.tabs { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; padding: 0 8px; -webkit-overflow-scrolling: touch; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex-shrink: 0; padding: 11px 13px; font-size: 13px; font-weight: 500; color: var(--text2); border: none; background: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; font-family: inherit; }
+.tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tab.promo { color: #7A3E00; }
+.tab.promo.on { color: #7A3E00; border-bottom-color: #C4681A; }
+
+.page { display: none; padding: 12px 14px; }
+.page.on { display: block; }
+
+.note { background: #FFFAF4; border: 1px solid #F0CC74; border-radius: var(--rs); padding: 9px 12px; font-size: 12px; color: #7A5800; margin-bottom: 10px; line-height: 1.6; }
+.note.green { background: var(--accentl); border-color: #C5D9CC; color: var(--accent); }
+
+.row-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sec-title { font-size: 12px; font-weight: 600; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; }
+.badge { font-size: 11px; color: var(--text3); background: var(--tag); padding: 2px 8px; border-radius: 99px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 10px; overflow: hidden; }
+.card-hd { padding: 11px 13px 9px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-start; }
+.card-body { padding: 11px 13px; display: flex; flex-direction: column; gap: 9px; }
+.fl { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+.fl.comp { background: #F0EAFA; color: #5B38A8; }
+.fl.wm { background: #FEF3E2; color: #A0560A; }
+.fl.ms { background: #E3F0E8; color: #1B5C34; }
+.fl.hm { background: #E3EEFA; color: #1A4A8F; }
+.fl.promo-bogo { background: #E3F0E8; color: #1B5C34; }
+.fl.promo-discount { background: #FDEBD0; color: #7A3E00; }
+.fl.promo-gift { background: #F0EAFA; color: #5B38A8; }
+.fl.promo-other2 { background: var(--tag); color: var(--text2); }
+.card-title { font-size: 14px; font-weight: 600; flex: 1; }
+.card-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.del { background: none; border: none; color: var(--text3); font-size: 20px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; font-family: inherit; }
+.fl-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+.kv { display: flex; flex-direction: column; gap: 2px; }
+.kl { font-size: 11px; color: var(--text2); font-weight: 500; }
+.kv-val { font-size: 13px; color: var(--text); line-height: 1.5; }
+.mono { font-family: 'Menlo', monospace; }
+.green-val { color: #1B5C34; }
+.sep { height: 1px; background: var(--border); margin: 2px 0; }
+
+.add-btn { width: 100%; padding: 13px; background: var(--surface); border: 1.5px dashed var(--accent); border-radius: var(--r); color: var(--accent); font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; margin-bottom: 8px; }
+.add-btn.promo { border-color: #C4681A; color: #7A3E00; }
+
+.empty { padding: 32px 0; text-align: center; color: var(--text3); font-size: 14px; }
+.empty-icon { font-size: 30px; margin-bottom: 8px; }
+
+/* Modal */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; }
+.overlay.on { display: block; }
+.sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-radius: 16px 16px 0 0; max-height: 90vh; overflow-y: auto; z-index: 201; transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); padding-bottom: 40px; -webkit-overflow-scrolling: touch; }
+.sheet.on { transform: translateY(0); }
+.handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 10px auto 0; }
+.sheet-title { padding: 13px 16px 11px; border-bottom: 1px solid var(--border); font-size: 16px; font-weight: 600; }
+.sheet-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.sheet-foot { padding: 10px 16px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.lbl { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 4px; }
+.req { color: var(--red); }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; font-size: 15px; font-family: inherit; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--rs);
+  padding: 9px 11px; outline: none; -webkit-appearance: none; appearance: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); background: var(--surface); }
+textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6860' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; padding: 7px 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-family: inherit; color: var(--text2); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip.on-bogo { background: #E3F0E8; border-color: #9ECAB0; color: #1B5C34; }
+.chip.on-discount { background: #FDEBD0; border-color: #E8A87C; color: #7A3E00; }
+.chip.on-gift { background: #F0EAFA; border-color: #C5AAEE; color: #5B38A8; }
+.chip.on-other2 { background: var(--tag); border-color: var(--border2); color: var(--text2); }
+
+.status-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sc { font-size: 12px; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-family: inherit; color: var(--text2); }
+.sc.on-ok { background: #E3F0E8; border-color: #9ECAB0; color: #1B5C34; }
+.sc.on-small { background: #FDEBD0; border-color: #F0CC74; color: #8B5A0A; }
+.sc.on-large { background: #FDEBD0; border-color: #F0CC74; color: #8B5A0A; }
+.sc.on-missing { background: #FEECEC; border-color: #F5A5A5; color: #9B2020; }
+.sc.on-na { background: var(--tag); border-color: var(--border2); color: var(--text2); }
+
+.compare-box { background: var(--accentl); border: 1px solid #C5D9CC; border-radius: var(--rs); padding: 10px 12px; }
+.compare-title { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dim3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.dim-c { display: flex; flex-direction: column; gap: 2px; }
+.dim-l { font-size: 11px; color: var(--text3); text-align: center; }
+.dim-c input { text-align: center; }
+
+.photo-zone { border: 1.5px dashed var(--border2); border-radius: var(--rs); padding: 14px; text-align: center; cursor: pointer; background: var(--bg); position: relative; }
+.photo-zone input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 0; }
+.photo-zone-txt { font-size: 13px; color: var(--text2); pointer-events: none; }
+.photo-zone-txt span { font-size: 20px; display: block; margin-bottom: 3px; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tw { position: relative; }
+.thumb { width: 68px; height: 68px; object-fit: cover; border-radius: var(--rs); border: 1px solid var(--border); display: block; cursor: pointer; }
+.tdel { position: absolute; top: -5px; right: -5px; background: var(--red); color: #fff; border: none; border-radius: 99px; width: 18px; height: 18px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; }
+
+.btn-cancel { padding: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); font-size: 15px; font-family: inherit; font-weight: 500; color: var(--text2); cursor: pointer; }
+.btn-ok { padding: 13px; background: var(--accent); border: none; border-radius: var(--r); font-size: 15px; font-family: inherit; font-weight: 600; color: #fff; cursor: pointer; }
+.btn-clear { width: calc(100% - 32px); margin: 8px 16px 0; padding: 11px; background: none; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; font-family: inherit; color: var(--text3); cursor: pointer; }
+
+.fab { position: fixed; bottom: 20px; right: 16px; background: var(--accent); color: #fff; border: none; border-radius: 99px; padding: 13px 20px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; z-index: 150; }
+
+.sum-txt { padding: 14px 16px; font-size: 13px; font-family: 'Menlo', monospace; background: var(--bg); border-radius: var(--rs); white-space: pre-wrap; line-height: 1.7; max-height: 52vh; overflow-y: auto; margin: 0 16px; }
+.btn-copy { width: calc(100% - 32px); margin: 12px 16px 0; padding: 13px; background: var(--accent); border: none; border-radius: var(--r); color: #fff; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+
+#toast { position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%); background: #1A1916; color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 99px; z-index: 400; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>輔銷物巡店觀察</h1>
+  <p id="datestr"></p>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab on" data-p="dry">乾主食</button>
+  <button class="tab" data-p="can">罐頭</button>
+  <button class="tab" data-p="snack">零食</button>
+  <button class="tab" data-p="health">保健品</button>
+  <button class="tab" data-p="litter">貓砂</button>
+  <button class="tab" data-p="supply">用品</button>
+  <button class="tab" data-p="brand">品牌飾條</button>
+  <button class="tab promo" data-p="promo">🏷 促銷活動</button>
+</div>
+
+<div class="page on" id="p-dry">
+  <div class="note green">我方現有輔銷：價格插牌 / 介紹長插卡 / 割型跳牌 / 飼料展示卡（汪喵、怪獸、HM 各有）</div>
+  <div class="row-hd"><span class="sec-title">乾主食</span><span class="badge" id="c-dry">0 筆</span></div>
+  <div id="l-dry"></div>
+  <button class="add-btn" id="ab-dry">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-can">
+  <div class="note green">我方現有輔銷：價格插牌（汪喵須改短）、品牌飾條（怪獸）</div>
+  <div class="row-hd"><span class="sec-title">罐頭</span><span class="badge" id="c-can">0 筆</span></div>
+  <div id="l-can"></div>
+  <button class="add-btn" id="ab-can">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-snack">
+  <div class="note green">我方現有輔銷：價格插牌 / 掛條頭卡（汪喵部分、怪獸、HM）</div>
+  <div class="row-hd"><span class="sec-title">零食</span><span class="badge" id="c-snack">0 筆</span></div>
+  <div id="l-snack"></div>
+  <button class="add-btn" id="ab-snack">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-health">
+  <div class="note green">我方現有輔銷：價格插牌（汪喵、怪獸）</div>
+  <div class="row-hd"><span class="sec-title">保健品</span><span class="badge" id="c-health">0 筆</span></div>
+  <div id="l-health"></div>
+  <button class="add-btn" id="ab-health">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-litter">
+  <div class="note green">我方現有輔銷：POP介紹牌 / 試聞盒（汪喵全系列、怪獸）</div>
+  <div class="row-hd"><span class="sec-title">貓砂</span><span class="badge" id="c-litter">0 筆</span></div>
+  <div id="l-litter"></div>
+  <button class="add-btn" id="ab-litter">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-supply">
+  <div class="note green">我方現有輔銷：價格插牌、品牌飾條（怪獸）</div>
+  <div class="row-hd"><span class="sec-title">用品</span><span class="badge" id="c-supply">0 筆</span></div>
+  <div id="l-supply"></div>
+  <button class="add-btn" id="ab-supply">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-brand">
+  <div class="note green">品牌飾條為全品牌必要輔銷物，記錄競品飾條形式與尺寸供比對</div>
+  <div class="row-hd"><span class="sec-title">品牌飾條</span><span class="badge" id="c-brand">0 筆</span></div>
+  <div id="l-brand"></div>
+  <button class="add-btn" id="ab-brand">＋ 新增觀察紀錄</button>
+</div>
+<div class="page" id="p-promo">
+  <div class="note">記錄競品 C 端促銷活動，含案型、執行方式、B 端進貨優惠及店家反饋</div>
+  <div class="row-hd"><span class="sec-title" style="color:#7A3E00;">促銷活動</span><span class="badge" id="c-promo">0 筆</span></div>
+  <div id="l-promo"></div>
+  <button class="add-btn promo" id="ab-promo">＋ 新增促銷活動紀錄</button>
+</div>
+
+<!-- POS modal -->
+<div class="overlay" id="ov-pos"></div>
+<div class="sheet" id="sh-pos">
+  <div class="handle"></div>
+  <div class="sheet-title" id="sh-pos-title">新增觀察紀錄</div>
+  <div class="sheet-body">
+    <div><div class="lbl">觀察品牌<span class="req">*</span></div><input type="text" id="m-brand" placeholder="品牌名稱"></div>
+    <div>
+      <div class="lbl">輔銷物類型<span class="req">*</span></div>
+      <div class="chips" id="pos-chips">
+        <button class="chip" data-v="價格插牌">價格插牌</button>
+        <button class="chip" data-v="介紹插卡">介紹插卡</button>
+        <button class="chip" data-v="跳牌">跳牌</button>
+        <button class="chip" data-v="飼料展示卡">飼料展示卡</button>
+        <button class="chip" data-v="掛條頭卡">掛條頭卡</button>
+        <button class="chip" data-v="POP立牌">POP立牌</button>
+        <button class="chip" data-v="品牌飾條">品牌飾條</button>
+        <button class="chip" data-v="試聞盒">試聞盒</button>
+        <button class="chip" data-v="燈箱">燈箱</button>
+        <button class="chip" data-v="陳列架">陳列架</button>
+        <button class="chip" data-v="其他">其他</button>
+      </div>
+    </div>
+    <div id="custom-row" style="display:none"><div class="lbl">其他類型說明</div><input type="text" id="m-custom" placeholder="請說明"></div>
+    <div><div class="lbl">材質 / 形式</div><input type="text" id="m-mat" placeholder="如：PP霧面、壓克力、銅版紙…"></div>
+    <div>
+      <div class="lbl">尺寸（cm）</div>
+      <div class="dim3">
+        <div class="dim-c"><div class="dim-l">寬 W</div><input type="number" id="m-w" placeholder="0" inputmode="decimal" step="0.1"></div>
+        <div class="dim-c"><div class="dim-l">高 H</div><input type="number" id="m-h" placeholder="0" inputmode="decimal" step="0.1"></div>
+        <div class="dim-c"><div class="dim-l">深 D</div><input type="number" id="m-d" placeholder="0" inputmode="decimal" step="0.1"></div>
+      </div>
+    </div>
+    <div><div class="lbl">溝通重點 / 文案</div><textarea id="m-msg" placeholder="主要訴求、Slogan、條列重點…"></textarea></div>
+    <div><div class="lbl">陳列位置 / 方式</div><input type="text" id="m-loc" placeholder="如：架上插牌、端架跳牌…"></div>
+    <div class="compare-box">
+      <div class="compare-title">▸ 對比我方輔銷（選填）</div>
+      <div class="grid2" style="margin-bottom:8px;">
+        <div><div class="lbl">對應我方品牌</div>
+          <select id="m-our-brand"><option value="">不適用</option><option>汪喵</option><option>怪獸</option><option>HM</option></select>
+        </div>
+        <div><div class="lbl">對應品項</div><input type="text" id="m-our-item" placeholder="如：介紹長插卡"></div>
+      </div>
+      <div class="lbl" style="margin-bottom:6px;">差距狀況</div>
+      <div class="status-chips" id="status-chips">
+        <button class="sc" data-v="ok" data-l="✓ 相符">✓ 相符</button>
+        <button class="sc" data-v="small" data-l="↑ 他較大">↑ 他較大</button>
+        <button class="sc" data-v="large" data-l="↓ 他較小">↓ 他較小</button>
+        <button class="sc" data-v="missing" data-l="✗ 我方無">✗ 我方無</button>
+        <button class="sc" data-v="na" data-l="— N/A">— N/A</button>
+      </div>
+    </div>
+    <div><div class="lbl">備註</div><textarea id="m-note" placeholder="質感、設計亮點…" style="min-height:48px;"></textarea></div>
+    <div>
+      <div class="lbl">現場照片</div>
+      <div class="photo-zone"><input type="file" id="m-photos" accept="image/*" multiple capture="environment"><div class="photo-zone-txt"><span>📷</span>點擊拍照 / 選取圖片</div></div>
+      <div class="thumbs" id="m-thumbs"></div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-cancel" id="pos-cancel">取消</button>
+    <button class="btn-ok" id="pos-save">儲存</button>
+  </div>
+</div>
+
+<!-- Promo modal -->
+<div class="overlay" id="ov-promo"></div>
+<div class="sheet" id="sh-promo">
+  <div class="handle"></div>
+  <div class="sheet-title">新增促銷活動紀錄</div>
+  <div class="sheet-body">
+    <div><div class="lbl">品牌<span class="req">*</span></div><input type="text" id="p-brand" placeholder="品牌名稱"></div>
+    <div><div class="lbl">品類<span class="req">*</span></div>
+      <select id="p-cat"><option value="">請選擇品類</option><option>乾主食</option><option>罐頭</option><option>零食</option><option>保健品</option><option>貓砂</option><option>用品</option><option>全品類</option><option>其他</option></select>
+    </div>
+    <div><div class="lbl">促銷商品<span class="req">*</span></div><input type="text" id="p-product" placeholder="商品名稱或品項描述"></div>
+    <div>
+      <div class="lbl">C 端活動案型<span class="req">*</span></div>
+      <div class="chips" id="promo-chips">
+        <button class="chip" data-v="買一送一" data-k="bogo">買一送一</button>
+        <button class="chip" data-v="價格折扣" data-k="discount">價格折扣</button>
+        <button class="chip" data-v="禮贈品" data-k="gift">禮贈品</button>
+        <button class="chip" data-v="其他" data-k="other2">其他</button>
+      </div>
+    </div>
+    <div><div class="lbl">案型補充</div><textarea id="p-detail" placeholder="詳細執行方案 / B 端進貨優惠…"></textarea></div>
+    <div><div class="lbl">活動期間</div><input type="text" id="p-period" placeholder="例：2025/06/01–06/30"></div>
+    <div><div class="lbl">店家回饋</div><textarea id="p-feedback" placeholder="賣得好嗎？消費者喜歡嗎？" style="min-height:56px;"></textarea></div>
+    <div><div class="lbl">溝通文案與陳列方式</div><textarea id="p-display" placeholder="端架爆炸牌、堆頭陳列…"></textarea></div>
+    <div>
+      <div class="lbl">現場照片</div>
+      <div class="photo-zone"><input type="file" id="p-photos" accept="image/*" multiple capture="environment"><div class="photo-zone-txt"><span>📷</span>點擊拍照 / 選取圖片</div></div>
+      <div class="thumbs" id="p-thumbs"></div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-cancel" id="promo-cancel">取消</button>
+    <button class="btn-ok" id="promo-save">儲存</button>
+  </div>
+</div>
+
+<!-- Summary modal -->
+<div class="overlay" id="ov-sum"></div>
+<div class="sheet" id="sh-sum">
+  <div class="handle"></div>
+  <div class="sheet-title">巡店摘要</div>
+  <div class="sum-txt" id="sum-txt"></div>
+  <button class="btn-copy" id="btn-copy">複製全部文字</button>
+  <div class="sheet-foot" style="margin-top:8px;">
+    <button class="btn-cancel" id="sum-cancel">關閉</button>
+    <button class="btn-ok" id="btn-export">匯出 JSON</button>
+  </div>
+  <button class="btn-clear" id="btn-clear">🗑 清除所有記錄（開始新一輪巡店）</button>
+</div>
+
+<button class="fab" id="fab">📋 匯出摘要</button>
+<div id="toast">✓ 已自動儲存</div>
+
+<script>
+var CATS = ['dry','can','snack','health','litter','supply','brand'];
+var CAT_LABEL = {dry:'乾主食',can:'罐頭',snack:'零食',health:'保健品',litter:'貓砂',supply:'用品',brand:'品牌飾條'};
+var data = {dry:[],can:[],snack:[],health:[],litter:[],supply:[],brand:[]};
+var promos = [];
+var curCat = 'dry';
+var posTypes = [];
+var statusVal = '';
+var posPhotos = [];
+var promoType = '';
+var promoTypeKey = '';
+var promoPhotos = [];
+
+// Date
+var now = new Date();
+document.getElementById('datestr').textContent = now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+
+// LocalStorage
+var SKEY = 'svd_v2';
+function save() {
+  try { localStorage.setItem(SKEY, JSON.stringify({data:data,promos:promos})); toast(); } catch(e){}
+}
+function load() {
+  try {
+    var r = localStorage.getItem(SKEY);
+    if (!r) return;
+    var d = JSON.parse(r);
+    if (d.data) { CATS.forEach(function(c){ if(d.data[c]) d.data[c].forEach(function(x){ data[c].push(x); }); }); }
+    if (d.promos) d.promos.forEach(function(x){ promos.push(x); });
+  } catch(e){}
+}
+var toastT;
+function toast() {
+  var el = document.getElementById('toast');
+  el.style.opacity = '1';
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ el.style.opacity = '0'; }, 1500);
+}
+
+// Tabs
+document.getElementById('tabs').addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-p]');
+  if (!btn) return;
+  var p = btn.getAttribute('data-p');
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); });
+  btn.classList.add('on');
+  document.querySelectorAll('.page').forEach(function(pg){ pg.classList.remove('on'); });
+  document.getElementById('p-'+p).classList.add('on');
+  btn.scrollIntoView({block:'nearest',inline:'center'});
+});
+
+// Add buttons
+CATS.forEach(function(cat) {
+  document.getElementById('ab-'+cat).addEventListener('click', function(){ openPos(cat); });
+});
+document.getElementById('ab-promo').addEventListener('click', function(){ openPromo(); });
+
+// POS chips
+document.getElementById('pos-chips').addEventListener('click', function(e) {
+  var chip = e.target.closest('[data-v]');
+  if (!chip) return;
+  var v = chip.getAttribute('data-v');
+  var idx = posTypes.indexOf(v);
+  if (idx === -1) { posTypes.push(v); chip.classList.add('on'); }
+  else { posTypes.splice(idx,1); chip.classList.remove('on'); }
+  document.getElementById('custom-row').style.display = posTypes.indexOf('其他') !== -1 ? 'block' : 'none';
+});
+
+// Status chips
+document.getElementById('status-chips').addEventListener('click', function(e) {
+  var chip = e.target.closest('[data-v]');
+  if (!chip) return;
+  document.querySelectorAll('#status-chips .sc').forEach(function(c){ c.className = 'sc'; });
+  statusVal = chip.getAttribute('data-v');
+  chip.classList.add('on-'+statusVal);
+});
+
+// Promo chips
+document.getElementById('promo-chips').addEventListener('click', function(e) {
+  var chip = e.target.closest('[data-v]');
+  if (!chip) return;
+  document.querySelectorAll('#promo-chips .chip').forEach(function(c){ c.className = 'chip'; });
+  promoType = chip.getAttribute('data-v');
+  promoTypeKey = chip.getAttribute('data-k');
+  chip.classList.add('on-'+promoTypeKey);
+});
+
+// Photos
+document.getElementById('m-photos').addEventListener('change', function(e) {
+  readFiles(e.target.files, posPhotos, 'm-thumbs');
+});
+document.getElementById('p-photos').addEventListener('change', function(e) {
+  readFiles(e.target.files, promoPhotos, 'p-thumbs');
+});
+function readFiles(files, arr, thumbId) {
+  Array.prototype.forEach.call(files, function(f) {
+    var r = new FileReader();
+    r.onload = function(ev) { arr.push(ev.target.result); renderThumbs(arr, thumbId); };
+    r.readAsDataURL(f);
+  });
+}
+function renderThumbs(arr, thumbId) {
+  document.getElementById(thumbId).innerHTML = arr.map(function(src,i){
+    return '<div class="tw"><img class="thumb" src="'+src+'" onclick="window.open(this.src,\'_blank\')"><button class="tdel" data-arr="'+thumbId+'" data-i="'+i+'">✕</button></div>';
+  }).join('');
+}
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.tdel');
+  if (!btn) return;
+  var arr = btn.getAttribute('data-arr') === 'm-thumbs' ? posPhotos : promoPhotos;
+  arr.splice(parseInt(btn.getAttribute('data-i')),1);
+  renderThumbs(arr, btn.getAttribute('data-arr'));
+});
+
+// Modal helpers
+function openSheet(ov, sh) {
+  document.getElementById(ov).classList.add('on');
+  setTimeout(function(){ document.getElementById(sh).classList.add('on'); }, 10);
+}
+function closeSheet(ov, sh) {
+  document.getElementById(sh).classList.remove('on');
+  setTimeout(function(){ document.getElementById(ov).classList.remove('on'); }, 280);
+}
+function closeOnOverlay(ovId, shId) {
+  document.getElementById(ovId).addEventListener('click', function(){ closeSheet(ovId, shId); });
+}
+closeOnOverlay('ov-pos','sh-pos');
+closeOnOverlay('ov-promo','sh-promo');
+closeOnOverlay('ov-sum','sh-sum');
+
+// POS modal
+function openPos(cat) {
+  curCat = cat;
+  document.getElementById('sh-pos-title').textContent = '新增觀察｜' + CAT_LABEL[cat];
+  resetPos();
+  openSheet('ov-pos','sh-pos');
+}
+function resetPos() {
+  ['m-brand','m-custom','m-mat','m-w','m-h','m-d','m-msg','m-loc','m-our-item','m-note'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('m-our-brand').value = '';
+  document.querySelectorAll('#pos-chips .chip').forEach(function(c){ c.classList.remove('on'); });
+  document.querySelectorAll('#status-chips .sc').forEach(function(c){ c.className='sc'; });
+  posTypes = []; statusVal = ''; posPhotos = [];
+  document.getElementById('m-thumbs').innerHTML = '';
+  document.getElementById('custom-row').style.display = 'none';
+  document.getElementById('m-photos').value = '';
+}
+document.getElementById('pos-cancel').addEventListener('click', function(){ closeSheet('ov-pos','sh-pos'); });
+document.getElementById('pos-save').addEventListener('click', function(){
+  var brand = document.getElementById('m-brand').value.trim();
+  if (!brand) { alert('請填寫觀察品牌名稱'); return; }
+  if (!posTypes.length) { alert('請選擇輔銷物類型'); return; }
+  var typeLabel = posTypes.map(function(t){ return t==='其他' ? (document.getElementById('m-custom').value.trim()||'其他') : t; }).join('、');
+  var w=document.getElementById('m-w').value, h=document.getElementById('m-h').value, d=document.getElementById('m-d').value;
+  var dims=[w?'W'+w:null,h?'H'+h:null,d?'D'+d:null].filter(Boolean).join(' × ');
+  var smap={ok:'✓ 相符',small:'↑ 他較大',large:'↓ 他較小',missing:'✗ 我方無',na:'— N/A'};
+  data[curCat].push({id:Date.now(),brand:brand,posType:typeLabel,material:document.getElementById('m-mat').value.trim(),dims:dims,message:document.getElementById('m-msg').value.trim(),location:document.getElementById('m-loc').value.trim(),ourBrand:document.getElementById('m-our-brand').value,ourItem:document.getElementById('m-our-item').value.trim(),status:smap[statusVal]||'',note:document.getElementById('m-note').value.trim(),photos:[].concat(posPhotos)});
+  renderList(curCat); save(); closeSheet('ov-pos','sh-pos');
+});
+
+// Promo modal
+function openPromo() { resetPromo(); openSheet('ov-promo','sh-promo'); }
+function resetPromo() {
+  ['p-brand','p-product','p-detail','p-period','p-feedback','p-display'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('p-cat').value='';
+  document.querySelectorAll('#promo-chips .chip').forEach(function(c){ c.className='chip'; });
+  promoType=''; promoTypeKey=''; promoPhotos=[];
+  document.getElementById('p-thumbs').innerHTML='';
+  document.getElementById('p-photos').value='';
+}
+document.getElementById('promo-cancel').addEventListener('click', function(){ closeSheet('ov-promo','sh-promo'); });
+document.getElementById('promo-save').addEventListener('click', function(){
+  var brand=document.getElementById('p-brand').value.trim();
+  var cat=document.getElementById('p-cat').value;
+  var product=document.getElementById('p-product').value.trim();
+  if (!brand){alert('請填寫品牌名稱');return;}
+  if (!cat){alert('請選擇品類');return;}
+  if (!product){alert('請填寫促銷商品');return;}
+  if (!promoType){alert('請選擇 C 端活動案型');return;}
+  promos.push({id:Date.now(),brand:brand,cat:cat,product:product,promoType:promoType,promoTypeKey:promoTypeKey,detail:document.getElementById('p-detail').value.trim(),period:document.getElementById('p-period').value.trim(),feedback:document.getElementById('p-feedback').value.trim(),display:document.getElementById('p-display').value.trim(),photos:[].concat(promoPhotos)});
+  renderPromos(); save(); closeSheet('ov-promo','sh-promo');
+});
+
+// Render
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderList(cat) {
+  var el = document.getElementById('l-'+cat);
+  document.getElementById('c-'+cat).textContent = data[cat].length + ' 筆';
+  if (!data[cat].length){ el.innerHTML='<div class="empty"><div class="empty-icon">🔍</div>尚未記錄任何觀察</div>'; return; }
+  el.innerHTML = data[cat].map(function(o){
+    var ob = o.ourBrand, brandCls = ob==='汪喵'?'wm':ob==='怪獸'?'ms':ob==='HM'?'hm':'comp';
+    return '<div class="card"><div class="card-hd"><div style="flex:1;min-width:0;"><div class="fl-row"><span class="fl comp">'+esc(o.brand)+'</span>'+(ob?'<span class="fl '+brandCls+'">對比：'+esc(ob)+'</span>':'')+'</div><div class="card-title">'+esc(o.posType)+'</div>'+(o.material?'<div class="card-sub">'+esc(o.material)+'</div>':'')+'</div><button class="del" onclick="delPos(\''+cat+'\','+o.id+')">×</button></div>'
+      +'<div class="card-body">'
+      +(o.dims?'<div class="kv"><span class="kl">尺寸</span><span class="kv-val mono">'+esc(o.dims)+' cm</span></div>':'')
+      +(o.message?'<div class="kv"><span class="kl">溝通重點</span><div class="kv-val">'+esc(o.message).replace(/\n/g,'<br>')+'</div></div>':'')
+      +(o.location?'<div class="kv"><span class="kl">陳列位置</span><span class="kv-val">'+esc(o.location)+'</span></div>':'')
+      +((o.ourItem||o.status)?'<div class="sep"></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+(o.ourItem?'<span style="font-size:12px;color:var(--text2);">對應：'+esc(o.ourItem)+'</span>':'')+(o.status?'<span style="font-size:12px;padding:2px 8px;border-radius:99px;background:var(--tag);color:var(--text2);">'+esc(o.status)+'</span>':'')+'</div>':'')
+      +(o.note?'<div style="font-size:12px;color:var(--text2);font-style:italic;">'+esc(o.note)+'</div>':'')
+      +(o.photos&&o.photos.length?'<div class="thumbs">'+o.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="window.open(this.src,\'_blank\')">'; }).join('')+'</div>':'')
+      +'</div></div>';
+  }).join('');
+}
+function renderPromos() {
+  var el = document.getElementById('l-promo');
+  document.getElementById('c-promo').textContent = promos.length + ' 筆';
+  if (!promos.length){ el.innerHTML='<div class="empty"><div class="empty-icon">🏷</div>尚未記錄任何促銷活動</div>'; return; }
+  el.innerHTML = promos.map(function(p){
+    return '<div class="card"><div class="card-hd" style="background:#FFFAF4;"><div style="flex:1;min-width:0;"><div class="fl-row"><span class="fl comp">'+esc(p.brand)+'</span><span class="fl promo-'+esc(p.promoTypeKey)+'">'+esc(p.promoType)+'</span><span style="font-size:11px;color:var(--text3);">'+esc(p.cat)+'</span></div><div class="card-title">'+esc(p.product)+'</div></div><button class="del" onclick="delPromo('+p.id+')">×</button></div>'
+      +'<div class="card-body">'
+      +(p.detail?'<div class="kv"><span class="kl">案型補充</span><div class="kv-val">'+esc(p.detail).replace(/\n/g,'<br>')+'</div></div>':'')
+      +(p.period?'<div class="kv"><span class="kl">活動期間</span><span class="kv-val">'+esc(p.period)+'</span></div>':'')
+      +(p.feedback?'<div class="kv"><span class="kl">店家回饋</span><div class="kv-val green-val">'+esc(p.feedback).replace(/\n/g,'<br>')+'</div></div>':'')
+      +(p.display?'<div class="kv"><span class="kl">溝通文案與陳列</span><div class="kv-val">'+esc(p.display).replace(/\n/g,'<br>')+'</div></div>':'')
+      +(p.photos&&p.photos.length?'<div class="thumbs">'+p.photos.map(function(s){ return '<img class="thumb" src="'+s+'" onclick="window.open(this.src,\'_blank\')">'; }).join('')+'</div>':'')
+      +'</div></div>';
+  }).join('');
+}
+
+function delPos(cat,id){ if(!confirm('確認刪除？'))return; data[cat]=data[cat].filter(function(o){return o.id!==id;}); renderList(cat); save(); }
+function delPromo(id){ if(!confirm('確認刪除？'))return; promos=promos.filter(function(p){return p.id!==id;}); renderPromos(); save(); }
+
+// Summary
+document.getElementById('fab').addEventListener('click', function(){
+  var lines=['📋 巡店觀察摘要','日期：'+now.toLocaleDateString('zh-TW'),''];
+  var total=0;
+  CATS.forEach(function(cat){
+    if(!data[cat].length) return;
+    lines.push('【輔銷物｜'+CAT_LABEL[cat]+'】（'+data[cat].length+' 筆）');
+    data[cat].forEach(function(o,i){
+      lines.push((i+1)+'. '+o.brand+' — '+o.posType);
+      if(o.material) lines.push('   材質：'+o.material);
+      if(o.dims) lines.push('   尺寸：'+o.dims+' cm');
+      if(o.message) lines.push('   溝通重點：'+o.message.replace(/\n/g,' '));
+      if(o.location) lines.push('   陳列位置：'+o.location);
+      if(o.ourBrand||o.ourItem) lines.push('   對比我方：'+[o.ourBrand,o.ourItem].filter(Boolean).join(' / ')+' '+o.status);
+      if(o.note) lines.push('   備註：'+o.note);
+      lines.push('');
+    });
+    total+=data[cat].length;
+  });
+  if(promos.length){
+    lines.push('【促銷活動】（'+promos.length+' 筆）');
+    promos.forEach(function(p,i){
+      lines.push((i+1)+'. '+p.brand+'｜'+p.cat+'｜'+p.product+'｜'+p.promoType);
+      if(p.detail) lines.push('   案型補充：'+p.detail.replace(/\n/g,' '));
+      if(p.period) lines.push('   活動期間：'+p.period);
+      if(p.feedback) lines.push('   店家回饋：'+p.feedback.replace(/\n/g,' '));
+      if(p.display) lines.push('   陳列方式：'+p.display.replace(/\n/g,' '));
+      lines.push('');
+    });
+    total+=promos.length;
+  }
+  if(!total){ alert('尚未有任何觀察記錄'); return; }
+  lines.splice(2,0,'共 '+total+' 筆觀察記錄');
+  document.getElementById('sum-txt').textContent = lines.join('\n');
+  openSheet('ov-sum','sh-sum');
+});
+document.getElementById('sum-cancel').addEventListener('click', function(){ closeSheet('ov-sum','sh-sum'); });
+document.getElementById('btn-copy').addEventListener('click', function(){
+  var txt = document.getElementById('sum-txt').textContent;
+  var btn = document.getElementById('btn-copy');
+  if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ btn.textContent='✓ 已複製！'; setTimeout(function(){btn.textContent='複製全部文字';},1800); }); }
+  else { var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); btn.textContent='✓ 已複製！'; setTimeout(function(){btn.textContent='複製全部文字';},1800); }
+});
+document.getElementById('btn-export').addEventListener('click', function(){
+  var d=JSON.parse(JSON.stringify({date:now.toISOString(),data:data,promos:promos}));
+  CATS.forEach(function(c){ d.data[c].forEach(function(o){ o.photoCount=o.photos.length; delete o.photos; }); });
+  d.promos.forEach(function(p){ p.photoCount=p.photos.length; delete p.photos; });
+  var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='巡店記錄.json'; a.click();
+});
+document.getElementById('btn-clear').addEventListener('click', function(){
+  if(!confirm('確定清除所有記錄？\n（建議先複製摘要再清除）')) return;
+  CATS.forEach(function(c){ data[c]=[]; renderList(c); });
+  promos=[]; renderPromos();
+  localStorage.removeItem(SKEY);
+  closeSheet('ov-sum','sh-sum');
+});
+
+// Init
+load();
+CATS.forEach(function(c){ renderList(c); });
+renderPromos();
+</script>
+</body>
+</html>
